@@ -1,0 +1,8 @@
+{
+  "markup": 2.0,
+  "minProfit": 1.0,
+  "overrides": {
+    "AF-29": 1.6
+  },
+  "hidden": ["TG"]
+}

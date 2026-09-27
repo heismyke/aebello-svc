@@ -1,0 +1,7 @@
+.env
+/bin/
+
+# Local secrets
+.env
+.env.*
+!.env.example
