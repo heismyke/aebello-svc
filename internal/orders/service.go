@@ -25,12 +25,10 @@ import (
 	"github.com/heismyke/aebello/svc/internal/catalog"
 	"github.com/heismyke/aebello/svc/internal/db"
 	"github.com/heismyke/aebello/svc/internal/esimaccess"
+	"github.com/heismyke/aebello/svc/internal/fx"
 	"github.com/heismyke/aebello/svc/internal/httpx"
 	"github.com/heismyke/aebello/svc/internal/paystack"
 )
-
-// Prices are set in USD (see catalog), so customers are charged in USD.
-const currency = "USD"
 
 // syncAfter is how stale an eSIM's status may be before we ask the provider
 // again. Usage only updates every 2-3 hours on their side anyway.
@@ -41,6 +39,7 @@ type Service struct {
 	Catalog  *catalog.Catalog
 	ESIM     *esimaccess.Client
 	Paystack *paystack.Client // nil when payments are not configured
+	FX       *fx.Converter    // USD price -> charged currency
 	WebURL   string
 	// OrderingEnabled gates spending real eSIM Access balance.
 	OrderingEnabled bool
@@ -60,10 +59,14 @@ func (s *Service) Create(ctx context.Context, user auth.User, slug, country stri
 	if country != "" && !plan.Covers(country) {
 		return Order{}, "", httpx.Invalid("This plan doesn't cover that destination.")
 	}
+	charge, err := s.FX.Charge(plan.Price)
+	if err != nil {
+		return Order{}, "", err
+	}
 	o, err := s.insertOrder(ctx, Order{
 		UserID: user.ID, PlanSlug: plan.Slug, PlanName: plan.Name, CountryCode: country,
 		DataBytes: plan.DataBytes, Days: plan.Days, CostUnits: plan.CostUnits,
-		Amount: plan.Price, Currency: currency,
+		Amount: charge.Amount, Currency: charge.Currency, ListPrice: plan.Price,
 	})
 	if err != nil {
 		return Order{}, "", err

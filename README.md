@@ -80,6 +80,9 @@ The simplest route is **App Platform** with a **Managed PostgreSQL** database:
 | `PAYSTACK_SECRET_KEY` | Paystack → Settings → API Keys (use `sk_test_…` first) |
 | `WEB_URL` | the website, e.g. `https://aebello.vercel.app` |
 | `ESIM_ORDERING_ENABLED` | `false` until you are ready to sell (see below) |
+| `CHARGE_CURRENCY` | `NGN` (default). Prices are shown in USD and converted at checkout |
+| `FX_BUFFER` | `0.03` (default): 3% added on top of the daily USD→NGN rate |
+| `FX_FALLBACK_RATE` | Optional NGN per USD, used only if the rate feed is down at start-up |
 
 4. In Paystack, set the webhook URL to `https://<your-api-domain>/v1/webhooks/paystack`.
 5. On Vercel, set `VITE_API_URL` to the API's URL and redeploy the website.

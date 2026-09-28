@@ -19,6 +19,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/heismyke/aebello/svc/internal/esimaccess"
+	"github.com/heismyke/aebello/svc/internal/fx"
 )
 
 type Network struct {
@@ -41,6 +42,9 @@ type Plan struct {
 	Speed        string    `json:"speed"`
 	TopUp        bool      `json:"topUp"`
 	Networks     []Network `json:"networks,omitempty"` // in the country asked about
+	// Charge is what checkout collects, when that differs from Price
+	// (e.g. naira at today's rate). Set by the handler.
+	Charge *fx.Money `json:"charge,omitempty"`
 
 	CostUnits int64                `json:"-"` // wholesale, USD x 10,000
 	countries []string             // ISO codes covered

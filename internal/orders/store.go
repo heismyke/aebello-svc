@@ -15,7 +15,8 @@ type Order struct {
 	CountryCode string     `json:"countryCode"`
 	DataBytes   int64      `json:"dataBytes"`
 	Days        int        `json:"days"`
-	Amount      int64      `json:"amount"` // minor units
+	Amount      int64      `json:"amount"`    // charged, minor units of Currency
+	ListPrice   int64      `json:"listPrice"` // shown price, USD cents
 	Currency    string     `json:"currency"`
 	CreatedAt   time.Time  `json:"createdAt"`
 	PaidAt      *time.Time `json:"paidAt"`
@@ -47,21 +48,21 @@ type Esim struct {
 }
 
 const orderColumns = `id, user_id, status, plan_slug, plan_name, country_code, data_bytes, duration_days,
-	cost_units, amount, currency, provider_order_no, created_at, paid_at`
+	cost_units, amount, currency, list_price, provider_order_no, created_at, paid_at`
 
 func scanOrder(row pgx.Row) (Order, error) {
 	var o Order
 	err := row.Scan(&o.ID, &o.UserID, &o.Status, &o.PlanSlug, &o.PlanName, &o.CountryCode, &o.DataBytes, &o.Days,
-		&o.CostUnits, &o.Amount, &o.Currency, &o.ProviderOrderNo, &o.CreatedAt, &o.PaidAt)
+		&o.CostUnits, &o.Amount, &o.Currency, &o.ListPrice, &o.ProviderOrderNo, &o.CreatedAt, &o.PaidAt)
 	return o, err
 }
 
 func (s *Service) insertOrder(ctx context.Context, o Order) (Order, error) {
 	return scanOrder(s.DB.QueryRow(ctx, `
-		INSERT INTO orders (user_id, plan_slug, plan_name, country_code, data_bytes, duration_days, cost_units, amount, currency)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+		INSERT INTO orders (user_id, plan_slug, plan_name, country_code, data_bytes, duration_days, cost_units, amount, currency, list_price)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 		RETURNING `+orderColumns,
-		o.UserID, o.PlanSlug, o.PlanName, o.CountryCode, o.DataBytes, o.Days, o.CostUnits, o.Amount, o.Currency))
+		o.UserID, o.PlanSlug, o.PlanName, o.CountryCode, o.DataBytes, o.Days, o.CostUnits, o.Amount, o.Currency, o.ListPrice))
 }
 
 func (s *Service) order(ctx context.Context, id string) (Order, error) {

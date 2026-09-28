@@ -26,6 +26,11 @@ type Config struct {
 	ESIMOrderingEnabled bool
 
 	PaystackSecretKey string
+	// ChargeCurrency is what Paystack collects. USD prices are converted at
+	// the daily rate plus FXBuffer; FXFallbackRate covers a rate-feed outage.
+	ChargeCurrency string
+	FXBuffer       float64
+	FXFallbackRate float64
 
 	PricingFile    string
 	CatalogRefresh time.Duration
@@ -43,6 +48,9 @@ func Load() Config {
 		ESIMAccessCode:      os.Getenv("ESIM_ACCESS_CODE"),
 		ESIMOrderingEnabled: envBool("ESIM_ORDERING_ENABLED", false),
 		PaystackSecretKey:   os.Getenv("PAYSTACK_SECRET_KEY"),
+		ChargeCurrency:      strings.ToUpper(env("CHARGE_CURRENCY", "NGN")),
+		FXBuffer:            envFloat("FX_BUFFER", 0.03),
+		FXFallbackRate:      envFloat("FX_FALLBACK_RATE", 0),
 		PricingFile:         env("PRICING_FILE", "pricing.json"),
 		CatalogRefresh:      envDuration("CATALOG_REFRESH", 6*time.Hour),
 	}
@@ -90,6 +98,13 @@ func envList(key string) []string {
 func envBool(key string, fallback bool) bool {
 	if b, err := strconv.ParseBool(os.Getenv(key)); err == nil {
 		return b
+	}
+	return fallback
+}
+
+func envFloat(key string, fallback float64) float64 {
+	if f, err := strconv.ParseFloat(os.Getenv(key), 64); err == nil {
+		return f
 	}
 	return fallback
 }

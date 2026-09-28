@@ -17,6 +17,7 @@ import (
 	"github.com/heismyke/aebello/svc/internal/config"
 	"github.com/heismyke/aebello/svc/internal/db"
 	"github.com/heismyke/aebello/svc/internal/esimaccess"
+	"github.com/heismyke/aebello/svc/internal/fx"
 	"github.com/heismyke/aebello/svc/internal/httpx"
 	"github.com/heismyke/aebello/svc/internal/orders"
 	"github.com/heismyke/aebello/svc/internal/paystack"
@@ -57,6 +58,9 @@ func run() error {
 	cat := catalog.New(esim, pricing, pool)
 	go cat.Run(ctx, cfg.CatalogRefresh)
 
+	rates := fx.New(cfg.ChargeCurrency, cfg.FXBuffer, cfg.FXFallbackRate)
+	go rates.Run(ctx)
+
 	pay := paystack.New(cfg.PaystackSecretKey)
 	if pay == nil {
 		slog.Warn("PAYSTACK_SECRET_KEY is not set; checkout is switched off")
@@ -65,7 +69,7 @@ func run() error {
 		slog.Warn("ESIM_ORDERING_ENABLED is off; paid orders will not buy eSIMs")
 	}
 	orderSvc := &orders.Service{
-		DB: pool, Catalog: cat, ESIM: esim, Paystack: pay,
+		DB: pool, Catalog: cat, ESIM: esim, Paystack: pay, FX: rates,
 		WebURL: cfg.WebURL, OrderingEnabled: cfg.ESIMOrderingEnabled,
 	}
 	go orderSvc.RunWorker(ctx, 20*time.Second)
@@ -75,7 +79,7 @@ func run() error {
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteJSON(w, http.StatusOK, map[string]any{"ok": true, "catalog": cat.Ready()})
 	})
-	(&catalog.Handler{Catalog: cat}).Routes(mux)
+	(&catalog.Handler{Catalog: cat, FX: rates}).Routes(mux)
 	authH.Routes(mux)
 	(&orders.Handler{Service: orderSvc, Auth: authH}).Routes(mux)
 

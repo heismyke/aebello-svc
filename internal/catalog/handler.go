@@ -4,10 +4,14 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/heismyke/aebello/svc/internal/fx"
 	"github.com/heismyke/aebello/svc/internal/httpx"
 )
 
-type Handler struct{ Catalog *Catalog }
+type Handler struct {
+	Catalog *Catalog
+	FX      *fx.Converter
+}
 
 func (h *Handler) Routes(mux *http.ServeMux) {
 	mux.Handle("GET /v1/destinations", httpx.HandlerFunc(h.list))
@@ -44,6 +48,9 @@ func (h *Handler) get(w http.ResponseWriter, r *http.Request) error {
 	if !ok {
 		return httpx.NotFound("We don't sell eSIMs for this destination yet.")
 	}
+	for i := range plans {
+		h.withCharge(&plans[i])
+	}
 	return httpx.OK(w, map[string]any{"destination": d, "plans": plans})
 }
 
@@ -56,5 +63,17 @@ func (h *Handler) plan(w http.ResponseWriter, r *http.Request) error {
 	if !ok {
 		return httpx.NotFound("This plan is no longer available.")
 	}
-	return httpx.OK(w, map[string]any{"plan": p.For(r.URL.Query().Get("country"))})
+	plan := p.For(r.URL.Query().Get("country"))
+	h.withCharge(&plan)
+	return httpx.OK(w, map[string]any{"plan": plan})
+}
+
+// withCharge adds the checkout amount when customers pay in another currency.
+func (h *Handler) withCharge(p *Plan) {
+	if h.FX.Currency() == p.Currency {
+		return
+	}
+	if m, err := h.FX.Charge(p.Price); err == nil {
+		p.Charge = &m
+	}
 }
